@@ -102,7 +102,7 @@ const PEXELS_API_KEY = "A14nEcZVNI47YWKxjBmPoZAD6ysfvX3ZyhsWzsCO5k13gaptUhqKxY6D
  */
 async function fetchDirectVideoUrl(videoId: string): Promise<string | null> {
   try {
-    const response = await fetch(`https://api.pexels.com/videos/${videoId}`, {
+    const response = await fetch(`https://api.pexels.com/v1/videos/videos/${videoId}`, {
       headers: {
         Authorization: PEXELS_API_KEY,
       },
@@ -138,7 +138,7 @@ const LOGEMENTS_DATA: Logement[] = [
     prix: "35 000",
     surface: "65 m²",
     badge: " BTC Certifié",
-    videoPexelsId: "17224631", 
+    videoPexelsId: "6007437", 
     audioDescription:
       "Bienvenue dans cette maison de trois pièces à Bouaké, dans l'Éco-Quartier Air France. " +
       "Construite entièrement en Briques de Terre Comprimée, elle offre une fraîcheur naturelle toute l'année, sans climatisation. " +
@@ -160,7 +160,7 @@ const LOGEMENTS_DATA: Logement[] = [
     prix: "28 000",
     surface: "45 m²",
     badge: " Bioclimatique",
-    videoPexelsId: "7578541", // Maison moderne extérieur (vérifié)
+    videoPexelsId: "6007437",
     audioDescription:
       "Découvrez cet appartement deux pièces à Nimbo, Bouaké, conçu selon les principes bioclimatiques. " +
       "Zéro climatisation nécessaire grâce à un système de ventilation naturelle traversante. " +
@@ -182,7 +182,7 @@ const LOGEMENTS_DATA: Logement[] = [
     prix: "20 000",
     surface: "32 m²",
     badge: " Toiture végétale",
-    videoPexelsId: "29459385", // Intérieur moderne cosy / studio (vérifié)
+    videoPexelsId: "6007437",
     audioDescription:
       "Studio moderne à Yamoussoukro dans le programme d'habitat social écologique. " +
       "Trente-deux mètres carrés avec une toiture végétale qui réduit la chaleur de dix degrés. " +
@@ -204,7 +204,7 @@ const LOGEMENTS_DATA: Logement[] = [
     prix: "75 000",
     surface: "110 m²",
     badge: " Énergie Solaire",
-    videoPexelsId: "15046674", // Drone panneaux solaires maison (vérifié)
+    videoPexelsId: "6007437",
     audioDescription:
       "Magnifique villa quatre pièces à Cocody, Abidjan. Architecture passive avec douze panneaux solaires couvrant cent pour cent des besoins énergétiques. " +
       "Cent dix mètres carrés sur deux niveaux avec grand jardin arboré. " +
@@ -243,7 +243,7 @@ const SUGGESTIONS_POOL = [
 
 
 
-// ─── Barre de recherche ───────────────────────────────────────────────────────
+// ─── Barre de recherche 
 
 const SearchBar: React.FC<{ onSearch: (q: string) => void }> = ({
   onSearch,
@@ -361,7 +361,7 @@ const SearchBar: React.FC<{ onSearch: (q: string) => void }> = ({
   );
 };
 
-// ─── Bouton VÉRIFIER animé (côté droit) ──────────────────────────────────────
+// ─── Bouton VÉRIFIER animé (côté droit)
 
 const VerifyButton: React.FC<{ onPress: () => void }> = ({ onPress }) => {
   const pulse = useRef(new Animated.Value(1)).current;
@@ -449,7 +449,7 @@ const VerifyButton: React.FC<{ onPress: () => void }> = ({ onPress }) => {
   );
 };
 
-// ─── Modal identité propriétaire ─────────────────────────────────────────────
+// ─── Modal identité propriétaire 
 
 const ProprietaireModal: React.FC<{
   proprietaire: Proprietaire;
@@ -717,7 +717,7 @@ const ProprietaireModal: React.FC<{
                   alignItems: "flex-start",
                 }}>
                 <Text style={{ fontSize: 20, marginRight: 10 }}>
-                  {isVerifie ? "✅" : "⚠️"}
+                  {isVerifie ? "" : ""}
                 </Text>
                 <Text
                   style={{
@@ -756,7 +756,7 @@ const ProprietaireModal: React.FC<{
   );
 };
 
-// ─── Carte vidéo ─────────────────────────────────────────────────────────────
+// ─── Carte vidéo
 
 interface VideoCardProps {
   item: Logement;
@@ -908,7 +908,6 @@ const VideoCard: React.FC<VideoCardProps> = ({
           right: 0,
           height: "55%",
           backgroundColor: "transparent",
-          // dégradé simulé
         }}
       />
 
