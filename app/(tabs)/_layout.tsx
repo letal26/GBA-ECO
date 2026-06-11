@@ -5,7 +5,6 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        // ✅ CETTE LIGNE MASQUE LA BARRE DU BAS SUR TOUS LES ÉCRANS DU GROUPE
         tabBarStyle: { display: 'none' }, 
       }}
     >
