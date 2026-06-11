@@ -6,7 +6,6 @@ import {
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import "react-native-reanimated";
-// @ts-ignore: CSS module declaration missing in this project setup
 import "../global.css";
 
 import { useColorScheme } from "@/hooks/use-color-scheme";
