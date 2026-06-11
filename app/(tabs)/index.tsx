@@ -19,15 +19,15 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─── Types 
 
 interface Proprietaire {
   id: string;
   nom: string;
-  photo: string; // URL avatar
+  photo: string;
   maisons: number;
   verifie: boolean;
-  note: number; // /5
+  note: number;
   membreDepuis: string;
 }
 
@@ -54,13 +54,178 @@ interface Reservation {
   statut: "active" | "annulee";
 }
 
-// Propriétaires
+// ─── Thème & Langue Context
+
+type ThemeMode = "light" | "dark" | "green";
+type AppLanguage = "fr" | "en" | "dioula";
+
+interface AppSettings {
+  theme: ThemeMode;
+  language: AppLanguage;
+}
+
+const THEMES: Record<ThemeMode, { primary: string; bg: string; card: string; text: string; subtext: string; border: string; label: string }> = {
+  light: {
+    primary: "#065f46",
+    bg: "#F9FAFB",
+    card: "#ffffff",
+    text: "#111827",
+    subtext: "#6B7280",
+    border: "#E5E7EB",
+    label: "Clair ☀️",
+  },
+  dark: {
+    primary: "#059669",
+    bg: "#111827",
+    card: "#1F2937",
+    text: "#F9FAFB",
+    subtext: "#9CA3AF",
+    border: "#374151",
+    label: "Sombre 🌙",
+  },
+  green: {
+    primary: "#065f46",
+    bg: "#F0FDF4",
+    card: "#ECFDF5",
+    text: "#064e3b",
+    subtext: "#047857",
+    border: "#A7F3D0",
+    label: "Éco 🌿",
+  },
+};
+
+const TRANSLATIONS: Record<AppLanguage, Record<string, string>> = {
+  fr: {
+    appSubtitle: "HABITAT ÉCOLOGIQUE",
+    searchPlaceholder: "Quartier, type de maison…",
+    listenAudio: "Écouter la description vocale",
+    stopAudio: "Lecture en cours — Appuyer pour stopper",
+    reserveBtn: "JE VEUX CETTE MAISON →",
+    seeEquip: "▼ Voir les équipements",
+    lessDetails: "▲ Moins de détails",
+    noResult: "Aucun logement trouvé",
+    reserve: "Réserver ce logement",
+    pay: "PAYER 2 000 FCFA →",
+    name: "1 · Nom et Prénom",
+    phone: "2 · Numéro Mobile Money",
+    income: "3 · Tranche de revenu mensuel",
+    settings: "Paramètres",
+    theme: "Thème d'affichage",
+    language: "Langue",
+    verified: "Vérifié ✓",
+    notVerified: "Non vérifié",
+    okTrust: "OK, je fais confiance",
+    bePrudent: "Compris, je suis prudent",
+    memberSince: "Membre depuis",
+    publishedHomes: "Maisons publiées",
+    status: "Statut",
+    verifyOwner: "VÉRIF.\nPROPRIO",
+    dossierFees: "Réserver pour :",
+    viaMMoney: "via Mobile Money",
+    cancelResa: "Annuler ma réservation",
+    backHome: "Retour à l'accueil",
+    resaConfirmed: "Réservation confirmée !",
+    resaCancelled: "Réservation annulée",
+    refund48h: "Remboursement sous 48h",
+    resaDetails: "Détails de la réservation",
+    dossierNumber: "NUMÉRO DE DOSSIER",
+    keepNumber: "Conservez ce numéro",
+  },
+  en: {
+    appSubtitle: "ECO HOUSING",
+    searchPlaceholder: "District, house type…",
+    listenAudio: "Listen to audio description",
+    stopAudio: "Playing — Tap to stop",
+    reserveBtn: "I WANT THIS HOUSE →",
+    seeEquip: "▼ View amenities",
+    lessDetails: "▲ Less details",
+    noResult: "No housing found",
+    reserve: "Reserve this housing",
+    pay: "PAY 2,000 FCFA →",
+    name: "1 · Full Name",
+    phone: "2 · Mobile Money Number",
+    income: "3 · Monthly income range",
+    settings: "Settings",
+    theme: "Display Theme",
+    language: "Language",
+    verified: "Verified ✓",
+    notVerified: "Not verified",
+    okTrust: "OK, I trust",
+    bePrudent: "Understood, I'm careful",
+    memberSince: "Member since",
+    publishedHomes: "Published homes",
+    status: "Status",
+    verifyOwner: "VERIFY\nOWNER",
+    dossierFees: "Application fee:",
+    viaMMoney: "via Mobile Money",
+    cancelResa: "Cancel my reservation",
+    backHome: "Back to home",
+    resaConfirmed: "Reservation confirmed!",
+    resaCancelled: "Reservation cancelled",
+    refund48h: "Refund within 48h",
+    resaDetails: "Reservation details",
+    dossierNumber: "DOSSIER NUMBER",
+    keepNumber: "Keep this number",
+  },
+  dioula: {
+    appSubtitle: "SO KƐLƐN",
+    searchPlaceholder: "Kɔrɔbɔ, so suguya…",
+    listenAudio: "Ka kumakan mɛn",
+    stopAudio: "A bɛ kalan — A digi ka segin",
+    reserveBtn: "NE BÉ SO IN FÉ →",
+    seeEquip: "▼ Ka cogoya sɔrɔ",
+    lessDetails: "▲ Kabo dɔɔni",
+    noResult: "So tɛ sɔrɔ",
+    reserve: "Ka so in sɔrɔ",
+    pay: "KA 2 000 FCFA SANIYA →",
+    name: "1 · Tɔgɔ",
+    phone: "2 · Mobile Money nimɔrɔ",
+    income: "3 · Warigwɛ",
+    settings: "Labɛnni",
+    theme: "Kibaro jateminɛ",
+    language: "Kan",
+    verified: "Sɛbɛnnen ✓",
+    notVerified: "Tɛ sɛbɛnnen",
+    okTrust: "A ɲɛsin, ne latigɛla",
+    bePrudent: "Ne faamu, ne bɛ hɛrɛ kɛ",
+    memberSince: "Tun bɛ bɔ",
+    publishedHomes: "Sow bɛ yɛlɛ",
+    status: "Cogoya",
+    verifyOwner: "SƐBƐN\nDAɲɛGɛLEW",
+    dossierFees: "Dosiye warigwɛ:",
+    viaMMoney: "Mobile Money fɛ",
+    cancelResa: "Ka jateminɛ bali",
+    backHome: "Ka segin kɔrɔfɔla la",
+    resaConfirmed: "Jateminɛ dafalen!",
+    resaCancelled: "Jateminɛ balinan",
+    refund48h: "Warigwɛ segin 48h kɔnɔ",
+    resaDetails: "Jateminɛ kunnafoniw",
+    dossierNumber: "DOSIYE NIMƆRƆ",
+    keepNumber: "Nimɔrɔ in mara",
+  },
+};
+
+const AppSettingsContext = React.createContext<{
+  settings: AppSettings;
+  setSettings: (s: AppSettings) => void;
+  t: (key: string) => string;
+  theme: typeof THEMES["light"];
+}>({
+  settings: { theme: "light", language: "fr" },
+  setSettings: () => {},
+  t: (k) => k,
+  theme: THEMES.light,
+});
+
+const useAppSettings = () => React.useContext(AppSettingsContext);
+
+// ─── Propriétaires
 
 const PROPRIETAIRES: Record<string, Proprietaire> = {
   p1: {
     id: "p1",
     nom: "Kouamé Arsène",
-    photo: "https://randomuser.me/api/portraits/men/32.jpg",
+    photo: "https://api.dicebear.com/7.x/adventurer/png?seed=Arsene&skinColor=brown,darkBrown&backgroundColor=b6e3f4",
     maisons: 4,
     verifie: true,
     note: 4.8,
@@ -69,7 +234,7 @@ const PROPRIETAIRES: Record<string, Proprietaire> = {
   p2: {
     id: "p2",
     nom: "Adjoua Bénédicte",
-    photo: "https://randomuser.me/api/portraits/women/44.jpg",
+    photo: "https://api.dicebear.com/7.x/adventurer/png?seed=Benedicte&skinColor=brown,darkBrown&backgroundColor=ffd5dc",
     maisons: 2,
     verifie: true,
     note: 4.6,
@@ -78,7 +243,7 @@ const PROPRIETAIRES: Record<string, Proprietaire> = {
   p3: {
     id: "p3",
     nom: "Inconnu Suspect",
-    photo: "https://randomuser.me/api/portraits/men/99.jpg",
+    photo: "https://api.dicebear.com/7.x/adventurer/png?seed=Suspect99&skinColor=brown&backgroundColor=c0aede",
     maisons: 1,
     verifie: false,
     note: 1.9,
@@ -87,19 +252,15 @@ const PROPRIETAIRES: Record<string, Proprietaire> = {
   p4: {
     id: "p4",
     nom: "Diabaté Moussa",
-    photo: "https://randomuser.me/api/portraits/men/61.jpg",
+    photo: "https://api.dicebear.com/7.x/adventurer/png?seed=Moussa&skinColor=darkBrown&backgroundColor=d1d4f9",
     maisons: 7,
     verifie: true,
     note: 4.9,
     membreDepuis: "2020",
   },
 };
-// Remplacez par votre vraie clé API Pexels obtenue à l'étape précédente
 const PEXELS_API_KEY = "A14nEcZVNI47YWKxjBmPoZAD6ysfvX3ZyhsWzsCO5k13gaptUhqKxY6D";
 
-/**
- * Récupère un lien vidéo brut .mp4 à partir de l'identifiant d'une vidéo Pexels
- */
 async function fetchDirectVideoUrl(videoId: string): Promise<string | null> {
   try {
     const response = await fetch(`https://api.pexels.com/v1/videos/videos/${videoId}`, {
@@ -114,7 +275,6 @@ async function fetchDirectVideoUrl(videoId: string): Promise<string | null> {
 
     const data = await response.json();
 
-    // Sélection de la version SD ou Mobile pour préserver la RAM
     const mobileVideo = data.video_files.find(
       (file: any) => file.quality === "sd" || file.quality === "mobile"
     );
@@ -475,7 +635,7 @@ const ProprietaireModal: React.FC<{
         setTimeout(() => {
           Speech.speak(
             "Attention ! Ce propriétaire n'est pas vérifié. Sa fiabilité est faible. Procédez avec prudence avant tout engagement.",
-            { language: "fr-FR", pitch: 0.8, rate: 0.85 },
+            { language: "fr-CI", pitch: 0.85, rate: 0.8 },
           );
         }, 600);
       }
@@ -548,7 +708,7 @@ const ProprietaireModal: React.FC<{
                     alignItems: "center",
                     marginBottom: 18,
                   }}>
-                  <Text style={{ fontSize: 24, marginRight: 10 }}>🚨</Text>
+                  <MaterialIcons name="gpp-bad" size={26} color="#DC2626" style={{ marginRight: 10 }} />
                   <View style={{ flex: 1 }}>
                     <Text
                       style={{
@@ -716,9 +876,12 @@ const ProprietaireModal: React.FC<{
                   flexDirection: "row",
                   alignItems: "flex-start",
                 }}>
-                <Text style={{ fontSize: 20, marginRight: 10 }}>
-                  {isVerifie ? "" : ""}
-                </Text>
+                <Ionicons
+                  name={isVerifie ? "shield-checkmark" : "warning"}
+                  size={22}
+                  color={isVerifie ? "#059669" : "#D97706"}
+                  style={{ marginRight: 10, marginTop: 1 }}
+                />
                 <Text
                   style={{
                     flex: 1,
@@ -833,9 +996,9 @@ const VideoCard: React.FC<VideoCardProps> = ({
     }
     setIsSpeaking(true);
     Speech.speak(item.audioDescription, {
-      language: "fr-FR",
-      pitch: 1.0,
-      rate: 0.9,
+      language: "fr-CI",
+      pitch: 1.05,
+      rate: 0.82,
       onDone: () => setIsSpeaking(false),
       onStopped: () => setIsSpeaking(false),
       onError: () => setIsSpeaking(false),
@@ -1033,8 +1196,8 @@ const VideoCard: React.FC<VideoCardProps> = ({
                 flex: 1,
               }}>
               {isSpeaking
-                ? "⏸ Lecture en cours — Appuyer pour stopper"
-                : "🔊 Écouter la description vocale"}
+                ? "Lecture en cours — Appuyer pour stopper"
+                : "Écouter la description vocale"}
             </Text>
           </TouchableOpacity>
 
@@ -1095,9 +1258,10 @@ const VideoCard: React.FC<VideoCardProps> = ({
           </View>
         )}
 
-        <TouchableOpacity onPress={() => setIsExpanded(!isExpanded)} style={{ marginBottom: 10 }}>
+        <TouchableOpacity onPress={() => setIsExpanded(!isExpanded)} style={{ marginBottom: 10, flexDirection: "row", alignItems: "center" }}>
+          <Ionicons name={isExpanded ? "chevron-up-circle-outline" : "chevron-down-circle-outline"} size={16} color="#059669" style={{ marginRight: 4 }} />
           <Text style={{ fontSize: 11, color: "#059669", fontWeight: "600" }}>
-            {isExpanded ? "▲ Moins de détails" : "▼ Voir les équipements"}
+            {isExpanded ? "Moins de détails" : "Voir les équipements"}
           </Text>
         </TouchableOpacity>
 
@@ -1359,6 +1523,121 @@ const ConfirmationScreen: React.FC<{
   );
 };
 
+// ─── Modal Paramètres ─────────────────────────────────────────────────────────
+
+const SettingsModal: React.FC<{ visible: boolean; onClose: () => void }> = ({ visible, onClose }) => {
+  const { settings, setSettings } = useAppSettings();
+  const slideAnim = useRef(new Animated.Value(600)).current;
+
+  useEffect(() => {
+    if (visible) {
+      Animated.spring(slideAnim, { toValue: 0, tension: 65, friction: 9, useNativeDriver: true }).start();
+    } else {
+      Animated.timing(slideAnim, { toValue: 600, duration: 250, useNativeDriver: true }).start();
+    }
+  }, [visible]);
+
+  const themeOptions: ThemeMode[] = ["light", "dark", "green"];
+  const langOptions: { code: AppLanguage; label: string; flag: string }[] = [
+    { code: "fr", label: "Français", flag: "🇨🇮" },
+    { code: "en", label: "English", flag: "🇬🇧" },
+    { code: "dioula", label: "Dioula", flag: "🌍" },
+  ];
+
+  const currentTheme = THEMES[settings.theme];
+
+  return (
+    <Modal transparent animationType="none" visible={visible} onRequestClose={onClose}>
+      <TouchableOpacity style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.55)" }} activeOpacity={1} onPress={onClose}>
+        <Animated.View style={{ position: "absolute", bottom: 0, left: 0, right: 0, transform: [{ translateY: slideAnim }] }}>
+          <TouchableOpacity activeOpacity={1}>
+            <View style={{
+              backgroundColor: currentTheme.card,
+              borderTopLeftRadius: 28,
+              borderTopRightRadius: 28,
+              paddingHorizontal: 24,
+              paddingTop: 20,
+              paddingBottom: 40,
+            }}>
+              {/* Handle */}
+              <View style={{ width: 40, height: 4, backgroundColor: currentTheme.border, borderRadius: 2, alignSelf: "center", marginBottom: 20 }} />
+
+              {/* Title */}
+              <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 24 }}>
+                <View style={{ width: 38, height: 38, borderRadius: 19, backgroundColor: currentTheme.primary + "22", alignItems: "center", justifyContent: "center", marginRight: 12 }}>
+                  <Ionicons name="settings" size={20} color={currentTheme.primary} />
+                </View>
+                <Text style={{ fontSize: 18, fontWeight: "900", color: currentTheme.text }}>Paramètres</Text>
+              </View>
+
+              {/* Thème */}
+              <Text style={{ fontSize: 11, fontWeight: "700", color: currentTheme.subtext, textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>
+                Thème d'affichage
+              </Text>
+              <View style={{ flexDirection: "row", gap: 10, marginBottom: 24 }}>
+                {themeOptions.map((mode) => {
+                  const th = THEMES[mode];
+                  const selected = settings.theme === mode;
+                  return (
+                    <TouchableOpacity
+                      key={mode}
+                      onPress={() => setSettings({ ...settings, theme: mode })}
+                      style={{
+                        flex: 1,
+                        borderRadius: 14,
+                        padding: 12,
+                        alignItems: "center",
+                        borderWidth: selected ? 2 : 1.5,
+                        borderColor: selected ? th.primary : currentTheme.border,
+                        backgroundColor: selected ? th.primary + "18" : currentTheme.bg,
+                      }}>
+                      <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: th.primary, marginBottom: 6, borderWidth: 2, borderColor: th.border }} />
+                      <Text style={{ fontSize: 11, fontWeight: selected ? "800" : "500", color: selected ? th.primary : currentTheme.subtext }}>{th.label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Langue */}
+              <Text style={{ fontSize: 11, fontWeight: "700", color: currentTheme.subtext, textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>
+                Langue
+              </Text>
+              {langOptions.map(({ code, label, flag }) => {
+                const selected = settings.language === code;
+                return (
+                  <TouchableOpacity
+                    key={code}
+                    onPress={() => setSettings({ ...settings, language: code })}
+                    style={{
+                      flexDirection: "row",
+                      alignItems: "center",
+                      padding: 14,
+                      borderRadius: 14,
+                      marginBottom: 10,
+                      borderWidth: 1.5,
+                      borderColor: selected ? currentTheme.primary : currentTheme.border,
+                      backgroundColor: selected ? currentTheme.primary + "12" : currentTheme.card,
+                    }}>
+                    <Text style={{ fontSize: 22, marginRight: 12 }}>{flag}</Text>
+                    <Text style={{ fontSize: 14, fontWeight: selected ? "800" : "400", color: selected ? currentTheme.primary : currentTheme.text, flex: 1 }}>{label}</Text>
+                    {selected && <Ionicons name="checkmark-circle" size={20} color={currentTheme.primary} />}
+                  </TouchableOpacity>
+                );
+              })}
+
+              <TouchableOpacity
+                onPress={onClose}
+                style={{ backgroundColor: currentTheme.primary, borderRadius: 14, paddingVertical: 14, alignItems: "center", marginTop: 6 }}>
+                <Text style={{ color: "#fff", fontWeight: "800", fontSize: 14 }}>Enregistrer et fermer</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Animated.View>
+      </TouchableOpacity>
+    </Modal>
+  );
+};
+
 // ─── App principale ───────────────────────────────────────────────────────────
 
 export default function App() {
@@ -1376,6 +1655,11 @@ export default function App() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
+  const [settingsVisible, setSettingsVisible] = useState(false);
+
+  const [appSettings, setAppSettings] = useState<AppSettings>({ theme: "light", language: "fr" });
+  const currentTheme = THEMES[appSettings.theme];
+  const t = (key: string) => TRANSLATIONS[appSettings.language][key] ?? TRANSLATIONS["fr"][key] ?? key;
 
   const { height: windowHeight } = useWindowDimensions();
   const listContainerHeight = windowHeight - 160;
@@ -1429,15 +1713,16 @@ export default function App() {
   };
 
   return (
+    <AppSettingsContext.Provider value={{ settings: appSettings, setSettings: setAppSettings, t, theme: currentTheme }}>
     <SafeAreaView
-      style={{ flex: 1, backgroundColor: "#065f46" }}
+      style={{ flex: 1, backgroundColor: currentTheme.primary }}
       edges={["top"]}>
       <View style={{ flex: 1, backgroundColor: "#000" }}>
         {/* EN-TÊTE */}
         <View
           style={{
             height: 60,
-            backgroundColor: "#065f46",
+            backgroundColor: currentTheme.primary,
             flexDirection: "row",
             alignItems: "center",
             justifyContent: "space-between",
@@ -1459,12 +1744,14 @@ export default function App() {
                 fontSize: 9,
                 letterSpacing: 1,
               }}>
-              HABITAT ÉCOLOGIQUE
+              {t("appSubtitle")}
             </Text>
           </View>
-          <TouchableOpacity style={{ padding: 6 }}>
+          {/* Paramètres */}
+          <TouchableOpacity style={{ padding: 6 }} onPress={() => setSettingsVisible(true)}>
             <Ionicons name="settings-outline" size={23} color="#fff" />
           </TouchableOpacity>
+         {/* Fin Paramètres */}
         </View>
 
         <SearchBar onSearch={setSearchQuery} />
@@ -1586,10 +1873,13 @@ export default function App() {
                     }}>
                     {logementSelectionne.pieces}
                   </Text>
-                  <Text
-                    style={{ fontSize: 12, color: "#6B7280", marginTop: 2 }}>
-                    📍 {logementSelectionne.quartier}
-                  </Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", marginTop: 2 }}>
+                    <MaterialIcons name="location-on" size={13} color="#6B7280" />
+                    <Text
+                      style={{ fontSize: 12, color: "#6B7280", marginTop: 2, marginLeft: 2 }}>
+                      {logementSelectionne.quartier}
+                    </Text>
+                  </View>
                   <Text
                     style={{
                       fontSize: 13,
@@ -1755,9 +2045,9 @@ export default function App() {
                       flex: 1,
                       marginLeft: 8,
                     }}>
-                    Frais de dossier :{" "}
+                    Réserver pour :{" "}
                     <Text style={{ fontWeight: "800" }}>2 000 FCFA</Text> via
-                    Mobile Money
+                    Mobile Money pendant 24h
                   </Text>
                 </View>
 
@@ -1812,7 +2102,11 @@ export default function App() {
             )}
           </SafeAreaView>
         </Modal>
+
+        {/* MODALE PARAMÈTRES */}
+        <SettingsModal visible={settingsVisible} onClose={() => setSettingsVisible(false)} />
       </View>
     </SafeAreaView>
+    </AppSettingsContext.Provider>
   );
 }
