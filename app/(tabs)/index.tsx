@@ -138,7 +138,7 @@ const LOGEMENTS_DATA: Logement[] = [
     prix: "35 000",
     surface: "65 m²",
     badge: " BTC Certifié",
-    videoPexelsId: "6007437", 
+    videoPexelsId: "17224631", 
     audioDescription:
       "Bienvenue dans cette maison de trois pièces à Bouaké, dans l'Éco-Quartier Air France. " +
       "Construite entièrement en Briques de Terre Comprimée, elle offre une fraîcheur naturelle toute l'année, sans climatisation. " +
@@ -160,7 +160,7 @@ const LOGEMENTS_DATA: Logement[] = [
     prix: "28 000",
     surface: "45 m²",
     badge: " Bioclimatique",
-    videoPexelsId: "6007437",
+    videoPexelsId: "7578541",
     audioDescription:
       "Découvrez cet appartement deux pièces à Nimbo, Bouaké, conçu selon les principes bioclimatiques. " +
       "Zéro climatisation nécessaire grâce à un système de ventilation naturelle traversante. " +
@@ -182,7 +182,7 @@ const LOGEMENTS_DATA: Logement[] = [
     prix: "20 000",
     surface: "32 m²",
     badge: " Toiture végétale",
-    videoPexelsId: "6007437",
+    videoPexelsId: "29459385",
     audioDescription:
       "Studio moderne à Yamoussoukro dans le programme d'habitat social écologique. " +
       "Trente-deux mètres carrés avec une toiture végétale qui réduit la chaleur de dix degrés. " +
@@ -204,7 +204,7 @@ const LOGEMENTS_DATA: Logement[] = [
     prix: "75 000",
     surface: "110 m²",
     badge: " Énergie Solaire",
-    videoPexelsId: "6007437",
+    videoPexelsId: "15046674",
     audioDescription:
       "Magnifique villa quatre pièces à Cocody, Abidjan. Architecture passive avec douze panneaux solaires couvrant cent pour cent des besoins énergétiques. " +
       "Cent dix mètres carrés sur deux niveaux avec grand jardin arboré. " +
