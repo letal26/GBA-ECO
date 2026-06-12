@@ -14,8 +14,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#FFFFFF",
-        "foregroundImage": "./assets/images/icon.png"
+       "foregroundImage": "./assets/images/icon-gba-eco.png",
+        "backgroundColor": "#065f46"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,

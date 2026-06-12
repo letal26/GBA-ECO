@@ -1,5 +1,6 @@
 import { FontAwesome, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import * as Speech from "expo-speech";
+import * as Location from "expo-location";
 import { useVideoPlayer, VideoView } from "expo-video";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -10,12 +11,15 @@ import {
   FlatList,
   Image,
   Modal,
+  PanResponder,
+  Platform,
   ScrollView,
+  Share,
   Text,
   TextInput,
   TouchableOpacity,
   useWindowDimensions,
-  View
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
@@ -35,13 +39,18 @@ interface Logement {
   id: string;
   quartier: string;
   pieces: string;
-  prix: string;
+  prix: string;        // Prix en FCFA (chiffre sans espace, ex: "35000")
+  prixNum: number;     // Prix numérique pour filtrage budget
   surface: string;
   badge: string;
   videoPexelsId: string;
   audioDescription: string;
   caracteristiques: string[];
   proprietaire: Proprietaire;
+  latitude?: number;
+  longitude?: number;
+  likes: number;
+  commentaires: number;
 }
 
 interface Reservation {
@@ -64,7 +73,7 @@ interface AppSettings {
   language: AppLanguage;
 }
 
-const THEMES: Record<ThemeMode, { primary: string; bg: string; card: string; text: string; subtext: string; border: string; label: string }> = {
+const THEMES: Record<ThemeMode, { primary: string; bg: string; card: string; text: string; subtext: string; border: string; label: string; labelIcon: string }> = {
   light: {
     primary: "#065f46",
     bg: "#F9FAFB",
@@ -72,7 +81,8 @@ const THEMES: Record<ThemeMode, { primary: string; bg: string; card: string; tex
     text: "#111827",
     subtext: "#6B7280",
     border: "#E5E7EB",
-    label: "Clair ☀️",
+    label: "Clair",
+    labelIcon: "sunny",
   },
   dark: {
     primary: "#059669",
@@ -81,7 +91,8 @@ const THEMES: Record<ThemeMode, { primary: string; bg: string; card: string; tex
     text: "#F9FAFB",
     subtext: "#9CA3AF",
     border: "#374151",
-    label: "Sombre 🌙",
+    label: "Sombre",
+    labelIcon: "moon",
   },
   green: {
     primary: "#065f46",
@@ -90,7 +101,8 @@ const THEMES: Record<ThemeMode, { primary: string; bg: string; card: string; tex
     text: "#064e3b",
     subtext: "#047857",
     border: "#A7F3D0",
-    label: "Éco 🌿",
+    label: "Éco",
+    labelIcon: "leaf",
   },
 };
 
@@ -112,7 +124,7 @@ const TRANSLATIONS: Record<AppLanguage, Record<string, string>> = {
     settings: "Paramètres",
     theme: "Thème d'affichage",
     language: "Langue",
-    verified: "Vérifié ✓",
+    verified: "Vérifié",
     notVerified: "Non vérifié",
     okTrust: "OK, je fais confiance",
     bePrudent: "Compris, je suis prudent",
@@ -148,7 +160,7 @@ const TRANSLATIONS: Record<AppLanguage, Record<string, string>> = {
     settings: "Settings",
     theme: "Display Theme",
     language: "Language",
-    verified: "Verified ✓",
+    verified: "Verified",
     notVerified: "Not verified",
     okTrust: "OK, I trust",
     bePrudent: "Understood, I'm careful",
@@ -184,7 +196,7 @@ const TRANSLATIONS: Record<AppLanguage, Record<string, string>> = {
     settings: "Labɛnni",
     theme: "Kibaro jateminɛ",
     language: "Kan",
-    verified: "Sɛbɛnnen ✓",
+    verified: "Sɛbɛnnen",
     notVerified: "Tɛ sɛbɛnnen",
     okTrust: "A ɲɛsin, ne latigɛla",
     bePrudent: "Ne faamu, ne bɛ hɛrɛ kɛ",
@@ -296,9 +308,14 @@ const LOGEMENTS_DATA: Logement[] = [
     quartier: "Bouaké, Air France (Éco-Quartier)",
     pieces: "3 Pièces en Briques de Terre Comprimée",
     prix: "35 000",
+    prixNum: 35000,
     surface: "65 m²",
     badge: " BTC Certifié",
-    videoPexelsId: "17224631", 
+    videoPexelsId: "17224631",
+    latitude: 7.6939,
+    longitude: -5.0308,
+    likes: 142,
+    commentaires: 23,
     audioDescription:
       "Bienvenue dans cette maison de trois pièces à Bouaké, dans l'Éco-Quartier Air France. " +
       "Construite entièrement en Briques de Terre Comprimée, elle offre une fraîcheur naturelle toute l'année, sans climatisation. " +
@@ -318,9 +335,14 @@ const LOGEMENTS_DATA: Logement[] = [
     quartier: "Bouaké, Nimbo (Bioclimatique)",
     pieces: "2 Pièces — Zéro climatisation",
     prix: "28 000",
+    prixNum: 28000,
     surface: "45 m²",
     badge: " Bioclimatique",
     videoPexelsId: "7578541",
+    latitude: 7.6780,
+    longitude: -5.0220,
+    likes: 98,
+    commentaires: 11,
     audioDescription:
       "Découvrez cet appartement deux pièces à Nimbo, Bouaké, conçu selon les principes bioclimatiques. " +
       "Zéro climatisation nécessaire grâce à un système de ventilation naturelle traversante. " +
@@ -340,9 +362,14 @@ const LOGEMENTS_DATA: Logement[] = [
     quartier: "Yamoussoukro, Habitat Social",
     pieces: "Studio Moderne — Toiture végétale",
     prix: "20 000",
+    prixNum: 20000,
     surface: "32 m²",
     badge: " Toiture végétale",
     videoPexelsId: "29459385",
+    latitude: 6.8206,
+    longitude: -5.2767,
+    likes: 207,
+    commentaires: 38,
     audioDescription:
       "Studio moderne à Yamoussoukro dans le programme d'habitat social écologique. " +
       "Trente-deux mètres carrés avec une toiture végétale qui réduit la chaleur de dix degrés. " +
@@ -362,9 +389,14 @@ const LOGEMENTS_DATA: Logement[] = [
     quartier: "Abidjan, Cocody (Villa Solaire)",
     pieces: "4 Pièces — Panneaux solaires & piscine naturelle",
     prix: "75 000",
+    prixNum: 75000,
     surface: "110 m²",
     badge: " Énergie Solaire",
     videoPexelsId: "15046674",
+    latitude: 5.3600,
+    longitude: -4.0083,
+    likes: 511,
+    commentaires: 74,
     audioDescription:
       "Magnifique villa quatre pièces à Cocody, Abidjan. Architecture passive avec douze panneaux solaires couvrant cent pour cent des besoins énergétiques. " +
       "Cent dix mètres carrés sur deux niveaux avec grand jardin arboré. " +
@@ -403,116 +435,224 @@ const SUGGESTIONS_POOL = [
 
 
 
-// ─── Barre de recherche 
+// ─── Budget Slider Component
+const BudgetSlider: React.FC<{
+  value: number;
+  max: number;
+  onValueChange: (v: number) => void;
+}> = ({ value, max, onValueChange }) => {
+  const sliderWidth = useRef(0);
+  const position = useRef(new Animated.Value(value / max)).current;
+  const positionRef = useRef(value / max);
 
-const SearchBar: React.FC<{ onSearch: (q: string) => void }> = ({
-  onSearch,
-}) => {
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {},
+      onPanResponderMove: (_, gs) => {
+        if (sliderWidth.current === 0) return;
+        const rawRatio = (gs.moveX - 16) / sliderWidth.current;
+        const ratio = Math.min(Math.max(rawRatio, 0), 1);
+        positionRef.current = ratio;
+        position.setValue(ratio);
+        const snappedValue = Math.round((ratio * max) / 5000) * 5000;
+        onValueChange(Math.min(Math.max(snappedValue, 15000), max));
+      },
+      onPanResponderRelease: () => {},
+    })
+  ).current;
+
+  const thumbLeft = position.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0%", "96%"],
+  });
+
+  const trackFill = position.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["0%", "100%"],
+  });
+
+  return (
+    <View
+      style={{ paddingHorizontal: 0, paddingVertical: 4 }}
+      onLayout={(e) => {
+        sliderWidth.current = e.nativeEvent.layout.width;
+      }}
+      {...panResponder.panHandlers}>
+      {/* Track */}
+      <View style={{ height: 6, backgroundColor: "rgba(255,255,255,0.25)", borderRadius: 3, overflow: "hidden" }}>
+        <Animated.View style={{ height: "100%", width: trackFill, backgroundColor: "#34d399", borderRadius: 3 }} />
+      </View>
+      {/* Thumb */}
+      <Animated.View
+        style={{
+          position: "absolute",
+          top: -7,
+          left: thumbLeft,
+          width: 20,
+          height: 20,
+          borderRadius: 10,
+          backgroundColor: "#fff",
+          shadowColor: "#000",
+          shadowOpacity: 0.3,
+          shadowRadius: 4,
+          elevation: 4,
+          borderWidth: 3,
+          borderColor: "#34d399",
+        }}
+      />
+    </View>
+  );
+};
+
+// ─── Barre de recherche améliorée avec budget + géolocalisation
+const SearchBar: React.FC<{
+  onSearch: (q: string) => void;
+  onBudgetChange: (budget: number) => void;
+  onGeoSearch: () => void;
+  isGeoLoading: boolean;
+  budget: number;
+  budgetActive: boolean;
+}> = ({ onSearch, onBudgetChange, onGeoSearch, isGeoLoading, budget, budgetActive }) => {
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [focused, setFocused] = useState(false);
+  const [budgetOpen, setBudgetOpen] = useState(false);
+  const budgetAnim = useRef(new Animated.Value(0)).current;
+  const MAX_BUDGET = 100000;
+
+  const toggleBudget = () => {
+    const toVal = budgetOpen ? 0 : 1;
+    setBudgetOpen(!budgetOpen);
+    Animated.spring(budgetAnim, { toValue: toVal, tension: 80, friction: 10, useNativeDriver: false }).start();
+  };
+
+  const budgetHeight = budgetAnim.interpolate({ inputRange: [0, 1], outputRange: [0, 88] });
 
   const handleChange = useCallback(
     (text: string) => {
       setQuery(text);
       onSearch(text);
-      if (!text.trim()) {
-        setSuggestions([]);
-        return;
-      }
+      if (!text.trim()) { setSuggestions([]); return; }
       setSuggestions(
-        SUGGESTIONS_POOL.filter((s) =>
-          s.toLowerCase().includes(text.toLowerCase()),
-        ).slice(0, 5),
+        SUGGESTIONS_POOL.filter((s) => s.toLowerCase().includes(text.toLowerCase())).slice(0, 5)
       );
     },
-    [onSearch],
+    [onSearch]
   );
 
+  const formatBudget = (val: number) =>
+    val >= MAX_BUDGET ? "Tout budget" : `${val.toLocaleString("fr-FR")} FCFA`;
+
+  const geoPulse = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    if (isGeoLoading) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(geoPulse, { toValue: 1.2, duration: 500, useNativeDriver: true }),
+          Animated.timing(geoPulse, { toValue: 1, duration: 500, useNativeDriver: true }),
+        ])
+      ).start();
+    } else {
+      geoPulse.stopAnimation();
+      geoPulse.setValue(1);
+    }
+  }, [isGeoLoading]);
+
   return (
-    <View
-      style={{
-        zIndex: 20,
-        backgroundColor: "#065f46",
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-      }}>
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          backgroundColor: "rgba(255,255,255,0.15)",
-          borderRadius: 16,
-          paddingHorizontal: 12,
-          paddingVertical: 10,
-          borderWidth: 1,
-          borderColor: "rgba(255,255,255,0.2)",
+    <View style={{ zIndex: 20, backgroundColor: "#065f46", paddingHorizontal: 12, paddingVertical: 10 }}>
+      {/* Ligne 1 : Recherche texte */}
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+        <View style={{
+          flex: 1, flexDirection: "row", alignItems: "center",
+          backgroundColor: "rgba(255,255,255,0.15)", borderRadius: 14,
+          paddingHorizontal: 12, paddingVertical: 9,
+          borderWidth: 1, borderColor: "rgba(255,255,255,0.2)",
         }}>
-        <Ionicons
-          name="search-outline"
-          size={17}
-          color="rgba(255,255,255,0.7)"
-        />
-        <TextInput
-          style={{ flex: 1, color: "#fff", fontSize: 14, marginLeft: 8 }}
-          placeholder="Quartier, type de maison…"
-          placeholderTextColor="rgba(255,255,255,0.5)"
-          value={query}
-          onChangeText={handleChange}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setTimeout(() => setFocused(false), 150)}
-        />
-        {query.length > 0 && (
-          <TouchableOpacity
-            onPress={() => {
-              setQuery("");
-              setSuggestions([]);
-              onSearch("");
-            }}>
-            <Ionicons
-              name="close-circle"
-              size={18}
-              color="rgba(255,255,255,0.6)"
-            />
-          </TouchableOpacity>
-        )}
-      </View>
-      {focused && suggestions.length > 0 && (
-        <View
+          <Ionicons name="search-outline" size={16} color="rgba(255,255,255,0.7)" />
+          <TextInput
+            style={{ flex: 1, color: "#fff", fontSize: 14, marginLeft: 8 }}
+            placeholder="Quartier, type de maison…"
+            placeholderTextColor="rgba(255,255,255,0.5)"
+            value={query}
+            onChangeText={handleChange}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setTimeout(() => setFocused(false), 150)}
+          />
+          {query.length > 0 && (
+            <TouchableOpacity onPress={() => { setQuery(""); setSuggestions([]); onSearch(""); }}>
+              <Ionicons name="close-circle" size={17} color="rgba(255,255,255,0.6)" />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Bouton Budget */}
+        <TouchableOpacity
+          onPress={toggleBudget}
           style={{
-            position: "absolute",
-            top: 58,
-            left: 16,
-            right: 16,
-            zIndex: 30,
-            backgroundColor: "#fff",
-            borderRadius: 14,
-            overflow: "hidden",
-            shadowColor: "#000",
-            shadowOpacity: 0.12,
-            shadowRadius: 8,
-            elevation: 6,
+            flexDirection: "row", alignItems: "center",
+            backgroundColor: budgetActive ? "#34d399" : "rgba(255,255,255,0.18)",
+            paddingHorizontal: 10, paddingVertical: 9, borderRadius: 14,
+            borderWidth: 1, borderColor: budgetActive ? "#34d399" : "rgba(255,255,255,0.25)",
+            gap: 4,
           }}>
+          <Ionicons name="wallet-outline" size={15} color={budgetActive ? "#065f46" : "#fff"} />
+          <Text style={{ color: budgetActive ? "#065f46" : "#fff", fontSize: 11, fontWeight: "700" }}>Budget</Text>
+        </TouchableOpacity>
+
+        {/* Bouton Géolocalisation */}
+        <Animated.View style={{ transform: [{ scale: geoPulse }] }}>
+          <TouchableOpacity
+            onPress={onGeoSearch}
+            disabled={isGeoLoading}
+            style={{
+              width: 40, height: 40, borderRadius: 20,
+              backgroundColor: isGeoLoading ? "#34d399" : "#fff",
+              alignItems: "center", justifyContent: "center",
+              shadowColor: "#000", shadowOpacity: 0.25, shadowRadius: 6, elevation: 5,
+            }}>
+            {isGeoLoading
+              ? <ActivityIndicator size="small" color="#065f46" />
+              : <Ionicons name="navigate" size={18} color="#065f46" />}
+          </TouchableOpacity>
+        </Animated.View>
+      </View>
+
+      {/* Budget slider panel */}
+      <Animated.View style={{ height: budgetHeight, overflow: "hidden" }}>
+        <View style={{ paddingTop: 12, paddingHorizontal: 4 }}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 10 }}>
+            <Text style={{ color: "rgba(255,255,255,0.7)", fontSize: 11, fontWeight: "600" }}>BUDGET MAX / MOIS</Text>
+            <View style={{ backgroundColor: "rgba(52,211,153,0.25)", paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10 }}>
+              <Text style={{ color: "#34d399", fontSize: 12, fontWeight: "800" }}>{formatBudget(budget)}</Text>
+            </View>
+          </View>
+          <BudgetSlider value={budget} max={MAX_BUDGET} onValueChange={onBudgetChange} />
+          <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 6 }}>
+            <Text style={{ color: "rgba(255,255,255,0.4)", fontSize: 10 }}>15 000 F</Text>
+            <Text style={{ color: "rgba(255,255,255,0.4)", fontSize: 10 }}>100 000 F+</Text>
+          </View>
+        </View>
+      </Animated.View>
+
+      {/* Suggestions dropdown */}
+      {focused && suggestions.length > 0 && (
+        <View style={{
+          position: "absolute", top: 58, left: 12, right: 12, zIndex: 30,
+          backgroundColor: "#fff", borderRadius: 14, overflow: "hidden",
+          shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 8, elevation: 6,
+        }}>
           {suggestions.map((s, i) => (
-            <TouchableOpacity
-              key={i}
+            <TouchableOpacity key={i}
               style={{
-                flexDirection: "row",
-                alignItems: "center",
-                paddingHorizontal: 16,
-                paddingVertical: 13,
+                flexDirection: "row", alignItems: "center",
+                paddingHorizontal: 16, paddingVertical: 13,
                 borderBottomWidth: i < suggestions.length - 1 ? 1 : 0,
                 borderBottomColor: "#F3F4F6",
               }}
-              onPress={() => {
-                setQuery(s);
-                setSuggestions([]);
-                onSearch(s);
-              }}>
+              onPress={() => { setQuery(s); setSuggestions([]); onSearch(s); }}>
               <Ionicons name="leaf-outline" size={14} color="#059669" />
-              <Text style={{ color: "#374151", fontSize: 14, marginLeft: 8 }}>
-                {s}
-              </Text>
+              <Text style={{ color: "#374151", fontSize: 14, marginLeft: 8 }}>{s}</Text>
             </TouchableOpacity>
           ))}
         </View>
@@ -823,7 +963,7 @@ const ProprietaireModal: React.FC<{
                       ? ("verified-user" as const)
                       : ("gpp-bad" as const),
                     label: "Statut",
-                    value: isVerifie ? "Vérifié ✓" : "Non vérifié",
+                    value: isVerifie ? "Vérifié" : "Non vérifié",
                     color: isVerifie ? "#059669" : "#DC2626",
                     bg: isVerifie ? "#ECFDF5" : "#FEF2F2",
                   },
@@ -916,6 +1056,83 @@ const ProprietaireModal: React.FC<{
         </Animated.View>
       </TouchableOpacity>
     </Modal>
+  );
+};
+
+// ─── Barre Sociale
+const SocialBar: React.FC<{ item: Logement }> = ({ item }) => {
+  const [liked, setLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(item.likes);
+  const likeScale = useRef(new Animated.Value(1)).current;
+
+  const handleLike = () => {
+    const newLiked = !liked;
+    setLiked(newLiked);
+    setLikeCount(newLiked ? likeCount + 1 : likeCount - 1);
+    Animated.sequence([
+      Animated.timing(likeScale, { toValue: 1.4, duration: 120, useNativeDriver: true }),
+      Animated.spring(likeScale, { toValue: 1, tension: 200, friction: 6, useNativeDriver: true }),
+    ]).start();
+  };
+
+  const handleShare = async () => {
+    try {
+      await Share.share({
+        message: `[Logement] *${item.pieces}* à *${item.quartier}*\n${item.prix} FCFA/mois · ${item.surface}\n\nVia GBA-ECO — Habitat Ecologique en Cote d'Ivoire`,
+        title: "GBA-ÉCO — Logement à partager",
+      });
+    } catch {}
+  };
+
+  return (
+    <View style={{
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginTop: 12,
+      paddingTop: 10,
+      borderTopWidth: 1,
+      borderTopColor: "#F3F4F6",
+    }}>
+      {/* Like */}
+      <TouchableOpacity onPress={handleLike} style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+        <Animated.View style={{ transform: [{ scale: likeScale }] }}>
+          <Ionicons name={liked ? "heart" : "heart-outline"} size={20} color={liked ? "#EF4444" : "#9CA3AF"} />
+        </Animated.View>
+        <Text style={{ color: liked ? "#EF4444" : "#9CA3AF", fontSize: 12, fontWeight: "700" }}>
+          {likeCount.toLocaleString("fr-FR")}
+        </Text>
+      </TouchableOpacity>
+
+      {/* Commentaires (indicatif) */}
+      <TouchableOpacity style={{ flexDirection: "row", alignItems: "center", gap: 5 }}>
+        <Ionicons name="chatbubble-outline" size={18} color="#9CA3AF" />
+        <Text style={{ color: "#9CA3AF", fontSize: 12, fontWeight: "600" }}>{item.commentaires}</Text>
+      </TouchableOpacity>
+
+      {/* Propriétaire mini avatar */}
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+        <Image
+          source={{ uri: item.proprietaire.photo }}
+          style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, borderColor: item.proprietaire.verifie ? "#059669" : "#D1D5DB" }}
+        />
+        <Text style={{ color: "#6B7280", fontSize: 11, fontWeight: "600", maxWidth: 80 }} numberOfLines={1}>
+          {item.proprietaire.nom.split(" ")[0]}
+        </Text>
+        {item.proprietaire.verifie && <Ionicons name="checkmark-circle" size={13} color="#059669" />}
+      </View>
+
+      {/* Partager */}
+      <TouchableOpacity
+        onPress={handleShare}
+        style={{
+          flexDirection: "row", alignItems: "center", gap: 4,
+          backgroundColor: "#F0FDF4", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10,
+        }}>
+        <Ionicons name="share-social-outline" size={15} color="#059669" />
+        <Text style={{ color: "#059669", fontSize: 11, fontWeight: "700" }}>Partager</Text>
+      </TouchableOpacity>
+    </View>
   );
 };
 
@@ -1309,6 +1526,9 @@ const VideoCard: React.FC<VideoCardProps> = ({
               JE VEUX CETTE MAISON →
             </Text>
           </TouchableOpacity>
+
+          {/* ─── Barre sociale ─── */}
+          <SocialBar item={item} />
         </View>
       </Animated.View>
 
@@ -1348,7 +1568,7 @@ const ConfirmationScreen: React.FC<{
               setLoading(false);
               onAnnuler(reservation.id);
               Alert.alert(
-                "✅ Annulation confirmée",
+                "Annulation confirmée",
                 "Votre demande a été enregistrée. Le remboursement de 2 000 FCFA sera effectué sous 48h sur votre Mobile Money.",
                 [{ text: "OK", onPress: onClose }],
               );
@@ -1538,10 +1758,10 @@ const SettingsModal: React.FC<{ visible: boolean; onClose: () => void }> = ({ vi
   }, [visible]);
 
   const themeOptions: ThemeMode[] = ["light", "dark", "green"];
-  const langOptions: { code: AppLanguage; label: string; flag: string }[] = [
-    { code: "fr", label: "Français", flag: "🇨🇮" },
-    { code: "en", label: "English", flag: "🇬🇧" },
-    { code: "dioula", label: "Dioula", flag: "🌍" },
+  const langOptions: { code: AppLanguage; label: string; iconName: string; iconLib: "Ionicons" | "MaterialIcons" | "FontAwesome" }[] = [
+    { code: "fr", label: "Français", iconName: "flag", iconLib: "Ionicons" },
+    { code: "en", label: "English", iconName: "language", iconLib: "MaterialIcons" },
+    { code: "dioula", label: "Dioula", iconName: "earth", iconLib: "Ionicons" },
   ];
 
   const currentTheme = THEMES[settings.theme];
@@ -1591,7 +1811,13 @@ const SettingsModal: React.FC<{ visible: boolean; onClose: () => void }> = ({ vi
                         borderColor: selected ? th.primary : currentTheme.border,
                         backgroundColor: selected ? th.primary + "18" : currentTheme.bg,
                       }}>
-                      <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: th.primary, marginBottom: 6, borderWidth: 2, borderColor: th.border }} />
+                      <View style={{
+                        width: 30, height: 30, borderRadius: 15,
+                        backgroundColor: th.primary, marginBottom: 6,
+                        alignItems: "center", justifyContent: "center",
+                      }}>
+                        <Ionicons name={th.labelIcon as any} size={16} color="#fff" />
+                      </View>
                       <Text style={{ fontSize: 11, fontWeight: selected ? "800" : "500", color: selected ? th.primary : currentTheme.subtext }}>{th.label}</Text>
                     </TouchableOpacity>
                   );
@@ -1602,8 +1828,9 @@ const SettingsModal: React.FC<{ visible: boolean; onClose: () => void }> = ({ vi
               <Text style={{ fontSize: 11, fontWeight: "700", color: currentTheme.subtext, textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>
                 Langue
               </Text>
-              {langOptions.map(({ code, label, flag }) => {
+              {langOptions.map(({ code, label, iconName, iconLib }) => {
                 const selected = settings.language === code;
+                const IconComp = iconLib === "MaterialIcons" ? MaterialIcons : Ionicons;
                 return (
                   <TouchableOpacity
                     key={code}
@@ -1618,7 +1845,13 @@ const SettingsModal: React.FC<{ visible: boolean; onClose: () => void }> = ({ vi
                       borderColor: selected ? currentTheme.primary : currentTheme.border,
                       backgroundColor: selected ? currentTheme.primary + "12" : currentTheme.card,
                     }}>
-                    <Text style={{ fontSize: 22, marginRight: 12 }}>{flag}</Text>
+                    <View style={{
+                      width: 34, height: 34, borderRadius: 17, marginRight: 12,
+                      backgroundColor: selected ? currentTheme.primary + "22" : currentTheme.border + "55",
+                      alignItems: "center", justifyContent: "center",
+                    }}>
+                      <IconComp name={iconName as any} size={18} color={selected ? currentTheme.primary : currentTheme.subtext} />
+                    </View>
                     <Text style={{ fontSize: 14, fontWeight: selected ? "800" : "400", color: selected ? currentTheme.primary : currentTheme.text, flex: 1 }}>{label}</Text>
                     {selected && <Ionicons name="checkmark-circle" size={20} color={currentTheme.primary} />}
                   </TouchableOpacity>
@@ -1657,6 +1890,14 @@ export default function App() {
   const [activeIndex, setActiveIndex] = useState(0);
   const [settingsVisible, setSettingsVisible] = useState(false);
 
+  // Budget filter
+  const [budget, setBudget] = useState(100000);
+  const budgetActive = budget < 100000;
+
+  // Géolocalisation
+  const [isGeoLoading, setIsGeoLoading] = useState(false);
+  const [geoVille, setGeoVille] = useState<string | null>(null);
+
   const [appSettings, setAppSettings] = useState<AppSettings>({ theme: "light", language: "fr" });
   const currentTheme = THEMES[appSettings.theme];
   const t = (key: string) => TRANSLATIONS[appSettings.language][key] ?? TRANSLATIONS["fr"][key] ?? key;
@@ -1664,15 +1905,59 @@ export default function App() {
   const { height: windowHeight } = useWindowDimensions();
   const listContainerHeight = windowHeight - 160;
 
-  const logementsFiltres = searchQuery.trim()
-    ? LOGEMENTS_DATA.filter((l) => {
-        const q = searchQuery.toLowerCase();
-        return (
-          l.quartier.toLowerCase().includes(q) ||
-          l.pieces.toLowerCase().includes(q)
+  // ─── Géolocalisation : trouver les logements proches
+  const handleGeoSearch = async () => {
+    setIsGeoLoading(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert(
+          "Localisation refusée",
+          "Activez la localisation pour trouver des logements près de vous.",
+          [{ text: "OK" }]
         );
-      })
-    : LOGEMENTS_DATA;
+        setIsGeoLoading(false);
+        return;
+      }
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const { latitude, longitude } = loc.coords;
+
+      // Trouver le logement le plus proche
+      const avecDistance = LOGEMENTS_DATA.map((l) => {
+        if (!l.latitude || !l.longitude) return { ...l, dist: Infinity };
+        const dLat = (l.latitude - latitude) * (Math.PI / 180);
+        const dLon = (l.longitude - longitude) * (Math.PI / 180);
+        const a = Math.sin(dLat / 2) ** 2 +
+          Math.cos(latitude * (Math.PI / 180)) * Math.cos(l.latitude * (Math.PI / 180)) * Math.sin(dLon / 2) ** 2;
+        const dist = 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)); // km
+        return { ...l, dist };
+      });
+
+      const plusProche = avecDistance.sort((a, b) => a.dist - b.dist)[0];
+      const ville = plusProche.quartier.split(",")[0];
+      setGeoVille(ville);
+      setSearchQuery(ville);
+
+      Alert.alert(
+        "Logements proches",
+        `Logement le plus proche : ${plusProche.quartier} (${Math.round(plusProche.dist)} km)`,
+        [{ text: "Voir" }]
+      );
+    } catch (e) {
+      Alert.alert("Erreur", "Impossible d'obtenir votre position.");
+    } finally {
+      setIsGeoLoading(false);
+    }
+  };
+
+  const logementsFiltres = LOGEMENTS_DATA.filter((l) => {
+    const matchQuery = searchQuery.trim()
+      ? (l.quartier.toLowerCase().includes(searchQuery.toLowerCase()) ||
+         l.pieces.toLowerCase().includes(searchQuery.toLowerCase()))
+      : true;
+    const matchBudget = budgetActive ? l.prixNum <= budget : true;
+    return matchQuery && matchBudget;
+  });
 
   const onViewableItemsChanged = useRef(({ viewableItems }: any) => {
     if (viewableItems.length > 0 && viewableItems[0].index !== null) {
@@ -1738,14 +2023,33 @@ export default function App() {
               }}>
               GBA-ÉCO
             </Text>
-            <Text
-              style={{
-                color: "rgba(255,255,255,0.5)",
-                fontSize: 9,
-                letterSpacing: 1,
-              }}>
-              {t("appSubtitle")}
-            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <Text style={{ color: "rgba(255,255,255,0.5)", fontSize: 9, letterSpacing: 1 }}>
+                {t("appSubtitle")}
+              </Text>
+              {geoVille && (
+                <View style={{
+                  flexDirection: "row", alignItems: "center", gap: 2,
+                  backgroundColor: "rgba(52,211,153,0.25)", paddingHorizontal: 6,
+                  paddingVertical: 2, borderRadius: 8,
+                }}>
+                  <Ionicons name="navigate" size={8} color="#34d399" />
+                  <Text style={{ color: "#34d399", fontSize: 8, fontWeight: "700" }}>{geoVille}</Text>
+                </View>
+              )}
+              {budgetActive && (
+                <View style={{
+                  flexDirection: "row", alignItems: "center", gap: 2,
+                  backgroundColor: "rgba(251,191,36,0.25)", paddingHorizontal: 6,
+                  paddingVertical: 2, borderRadius: 8,
+                }}>
+                  <Ionicons name="wallet" size={8} color="#FBBF24" />
+                  <Text style={{ color: "#FBBF24", fontSize: 8, fontWeight: "700" }}>
+                    ≤{(budget / 1000).toFixed(0)}k F
+                  </Text>
+                </View>
+              )}
+            </View>
           </View>
           {/* Paramètres */}
           <TouchableOpacity style={{ padding: 6 }} onPress={() => setSettingsVisible(true)}>
@@ -1754,7 +2058,14 @@ export default function App() {
          {/* Fin Paramètres */}
         </View>
 
-        <SearchBar onSearch={setSearchQuery} />
+        <SearchBar
+          onSearch={setSearchQuery}
+          onBudgetChange={setBudget}
+          onGeoSearch={handleGeoSearch}
+          isGeoLoading={isGeoLoading}
+          budget={budget}
+          budgetActive={budgetActive}
+        />
 
         {logementsFiltres.length > 0 ? (
           <FlatList
@@ -1793,6 +2104,11 @@ export default function App() {
               }}>
               Aucun logement trouvé
             </Text>
+            {budgetActive && (
+              <Text style={{ color: "#6B7280", fontSize: 13, marginTop: 6, textAlign: "center", paddingHorizontal: 32 }}>
+                Budget : max {budget.toLocaleString("fr-FR")} FCFA/mois{"\n"}Essayez d'augmenter votre budget
+              </Text>
+            )}
           </View>
         )}
 
